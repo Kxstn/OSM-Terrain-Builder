@@ -76,8 +76,7 @@ def create_terrain_mesh(
         for geom, val in rasterio.features.shapes(
                 mask, transform=data.transform):
 
-            # Transform shapes from the dataset's own coordinate
-            # reference system to CRS84 (EPSG:4326).
+            # Transform shapes from the dataset's own coordinate reference system to CRS84 (EPSG:4326).
             geom = rasterio.warp.transform_geom(
                 data.crs, 'EPSG:4326', geom, precision=6)
 
@@ -89,23 +88,10 @@ def create_terrain_mesh(
             max_print_height_mm=30.0,
         )
 
-        print(f"Robust terrain relief: {relief_m:.1f} m")
-        print(f"Vertical scale: {vertical_scale:.4f} mm/m")
-        print(f"Printed terrain relief: {heightmap.max() - heightmap.min():.1f} mm")
-        #plt.figure(figsize=(10, 8))
-        #plt.imshow(elevation, cmap="terrain")
-        #plt.show()
-
-        print("Shape", elevation.shape)
-        print("Elevation range:", elevation.min(), elevation.max())
-        print("Elevation range:", heightmap.min(), heightmap.max())
-
         rows, cols = heightmap.shape
 
-        # X increases west -> east
         x = np.tile(np.arange(cols), (rows, 1))
 
-        # Y increases south -> north
         y = np.tile(
             np.arange(rows - 1, -1, -1).reshape(-1, 1),
             (1, cols)
@@ -134,31 +120,17 @@ def create_terrain_mesh(
                 faces.append([top_right, bottom_left, bottom_right])
 
         faces = np.array(faces, dtype=np.int64)
-
-        # Create the terrain mesh
         mesh = trimesh.Trimesh(
             vertices=vertices,
             faces=faces,
             process=False
         )
 
-        print("Vertices:", len(mesh.vertices))
-        print("Triangles:", len(mesh.faces))
-        print("Bounds:", mesh.bounds)
-
-        # These settings will be supplied by the Streamlit UI.
-        # Temporary defaults allow this script to run independently.
-        
-        # --------------------------------------------------
-        # 1. SCALE THE TERRAIN
-        # --------------------------------------------------
-
         target_size_mm = terrain_size_cm * 10.0
 
         width = mesh.extents[0]
         depth = mesh.extents[1]
 
-        # Preserve the original terrain proportions
         scale_xy = min(
             target_size_mm / width,
             target_size_mm / depth
@@ -167,22 +139,14 @@ def create_terrain_mesh(
         mesh.vertices[:, 0] *= scale_xy
         mesh.vertices[:, 1] *= scale_xy
 
-        # --------------------------------------------------
-        # 2. CREATE THE BASE AND CLOSE THE MESH
-        # --------------------------------------------------
-
-        # Move the terrain up to make room for the base
         terrain_vertices = mesh.vertices.copy()
         terrain_vertices[:, 2] += base_thickness_mm
 
         n = len(terrain_vertices)
 
-        # Make a copy of the terrain grid for the flat bottom
         bottom_vertices = mesh.vertices.copy()
         bottom_vertices[:, 2] = 0.0
 
-        # Identify the grid boundary vertices.
-        # Expand the bottom footprint by 5 mm on each side.
         rows, cols = heightmap.shape
 
         bottom_grid = bottom_vertices.reshape(rows, cols, 3)
@@ -190,36 +154,23 @@ def create_terrain_mesh(
         bottom_grid[:, 0, 0] -= border_margin_mm
         bottom_grid[:, -1, 0] += border_margin_mm
 
-        # Y increases northwards in the existing terrain grid
         bottom_grid[0, :, 1] += border_margin_mm
         bottom_grid[-1, :, 1] -= border_margin_mm
 
         bottom_vertices = bottom_grid.reshape(-1, 3)
 
-        # Outer ring at the top of the base
         outer_top_vertices = bottom_vertices.copy()
         outer_top_vertices[:, 2] = base_thickness_mm
 
-        # Combine the three sets of vertices:
-        # terrain, bottom, outer top ring
         all_vertices = np.vstack((
             terrain_vertices,
             bottom_vertices,
             outer_top_vertices
         ))
 
-        # --------------------------------------------------
-        # 3. TERRAIN TOP AND FLAT BOTTOM
-        # --------------------------------------------------
-
         top_faces = mesh.faces.copy()
 
-        # Reverse the triangle winding for the bottom
         bottom_faces = mesh.faces[:, ::-1] + n
-
-        # --------------------------------------------------
-        # 4. FIND THE TERRAIN PERIMETER
-        # --------------------------------------------------
 
         all_edges = np.vstack((
             mesh.faces[:, [0, 1]],
@@ -234,7 +185,6 @@ def create_terrain_mesh(
             return_counts=True
         )
 
-        # Edges belonging to only one triangle are boundary edges
         boundary_edges = unique_edges[counts == 1]
 
         border_faces = []
@@ -248,10 +198,6 @@ def create_terrain_mesh(
             # Connect the outer edge down to the bottom
             side_faces.append([a + 2*n, b + 2*n, b + n])
             side_faces.append([a + 2*n, b + n, a + n])
-
-        # --------------------------------------------------
-        # 5. ASSEMBLE THE COMPLETE SOLID
-        # --------------------------------------------------
 
         all_faces = np.vstack((
             top_faces,
@@ -269,10 +215,6 @@ def create_terrain_mesh(
         # Repair consistent face orientation
         trimesh.repair.fix_normals(solid_mesh)
 
-        # --------------------------------------------------
-        # 6. CHECK THE RESULT
-        # --------------------------------------------------
-
         # Add optional building geometry above the terrain.
         building_mesh = create_buildings_mesh(
             buildings=buildings,
@@ -289,11 +231,6 @@ def create_terrain_mesh(
                 solid_mesh,
                 building_mesh,
             ])
-
-        print("Watertight:", solid_mesh.is_watertight)
-        print("Winding consistent:", solid_mesh.is_winding_consistent)
-        print("Dimensions (mm):", solid_mesh.extents)
-        print("Volume:", solid_mesh.volume)
 
         solid_mesh.export(output_path)
         return solid_mesh
