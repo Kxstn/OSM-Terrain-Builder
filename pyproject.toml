@@ -1,0 +1,73 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "osm-terrain-builder"
+version = "0.1"
+description = "Create printable terrain models from elevation and OpenStreetMap data"
+license = "MIT"
+requires-python = ">=3.10"
+dependencies = [
+    "affine",
+    "altair",
+    "anyio",
+    "attrs",
+    "branca",
+    "certifi",
+    "charset-normalizer",
+    "click",
+    "contourpy",
+    "cycler",
+    "folium",
+    "fonttools",
+    "geopandas",
+    "h11",
+    "idna",
+    "itsdangerous",
+    "jinja2",
+    "jsonschema",
+    "jsonschema-specifications",
+    "kiwisolver",
+    "markupsafe",
+    "matplotlib",
+    "narwhals",
+    "networkx",
+    "numpy",
+    "osmnx",
+    "packaging",
+    "pandas",
+    "pillow",
+    "protobuf",
+    "pyarrow",
+    "pydeck",
+    "pyglet",
+    "pyogrio",
+    "pyparsing",
+    "pyproj",
+    "python-dateutil",
+    "python-dotenv",
+    "python-multipart",
+    "rasterio",
+    "referencing",
+    "requests",
+    "rpds-py",
+    "scipy",
+    "shapely",
+    "six",
+    "starlette",
+    "streamlit",
+    "streamlit-folium",
+    "streamlit-stl",
+    "trimesh",
+    "typing-extensions",
+    "tzdata",
+    "urllib3",
+    "uvicorn",
+    "watchdog",
+    "websockets",
+    "xyzservices",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
